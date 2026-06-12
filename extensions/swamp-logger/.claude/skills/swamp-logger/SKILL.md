@@ -18,6 +18,11 @@ The capture happens **outside** swamp on purpose: a swamp extension runs *inside
 cannot intercept the CLI's own outbound telemetry. swamp-logger is a tiny local HTTP listener;
 swamp's official per-repo `telemetryEndpoint` override points telemetry at it.
 
+> **Tool source:** the listener is the standalone Deno tool at
+> <https://github.com/henry-renner-v/swamp-logger> — this skill is the wiring, not the capture code.
+> **Companion:** audit the captured store with the `@henryrennerv/swamp-telemetry-audit` model+report
+> (`swamp extension pull @henryrennerv/swamp-telemetry-audit`).
+
 ## How it works
 
 ```

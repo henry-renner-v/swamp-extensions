@@ -15,6 +15,21 @@ or homelab-specific values.
   [swamp-logger](https://github.com/henry-renner-v/swamp-logger) process so its telemetry can be
   captured and audited.
 
+## How they fit together
+
+```
+github.com/henry-renner-v/swamp-logger   ── the standalone Deno capture tool (separate repo)
+            ▲  driven by
+@henryrennerv/swamp-logger                ── skill:        CAPTURE swamp's telemetry → event store
+            ▼  feeds
+@henryrennerv/swamp-telemetry-audit       ── model+report: AUDIT that event store
+```
+
+Pull the **swamp-logger** skill to capture, then the **swamp-telemetry-audit** model+report to
+summarize what was captured. The skill points at the independent tool repo above; the audit
+vendors that tool's analysis core (`extensions/models/audit_core.ts`) so its output matches the
+tool's standalone `audit.ts`.
+
 ## Layout
 
 Typed extension source lives under `extensions/` (swamp's default `typedDir` resolution):

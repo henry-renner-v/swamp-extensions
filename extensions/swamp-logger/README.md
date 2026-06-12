@@ -4,6 +4,15 @@ A skills-only swamp extension that teaches an agent (or a human) how to **captur
 audit the telemetry the `swamp` CLI emits**, using the standalone
 [swamp-logger](https://github.com/henry-renner-v/swamp-logger) tool.
 
+> **Tool source:** the capture binary is the independent, zero-dependency Deno tool at
+> **<https://github.com/henry-renner-v/swamp-logger>**. This skill is only the *wiring* that points
+> swamp at it — it contains no capture logic.
+>
+> **Companion — audit what you capture:** the
+> [`@henryrennerv/swamp-telemetry-audit`](https://swamp-club.com/extensions/@henryrennerv/swamp-telemetry-audit)
+> model+report turns the captured event store into a repeatable audit
+> (`swamp extension pull @henryrennerv/swamp-telemetry-audit`).
+
 The capture deliberately runs **outside** swamp: a swamp extension executes *inside* the CLI
 and cannot intercept the CLI's own outbound telemetry. This extension therefore ships
 *guidance*, not capture logic — it points swamp's official per-repo `telemetryEndpoint` override
