@@ -1,0 +1,331 @@
+/**
+ * Vendored audit core for `@henryrennerv/swamp-telemetry-audit`.
+ *
+ * Canonical upstream: `audit.ts` in github.com/henry-renner-v/swamp-logger, pinned to commit
+ * `80aa6130f5e0d43291ab96beb08264e49b9803a0`. This is a synced library copy of the exported
+ * surface only (the standalone CLI stays upstream). It is vendored — not imported by URL —
+ * because the registry scorer runs `deno doc --lint` in a sandbox with no network and a
+ * read-only Deno cache, so a remote `https://` specifier fails to resolve. A relative import
+ * keeps the published bundle self-contained while letting the scorer parse it from disk.
+ *
+ * Location: this helper lives inside the `extensions/models/` typed dir (imported as
+ * `./audit_core.ts` by the model and `../models/audit_core.ts` by the report) on purpose. The
+ * quality scorer stages source by mirroring the typed-dir tree before running `deno doc`; a
+ * relative import that escapes the typed dir (e.g. a sibling `extensions/shared/`) is not
+ * staged and fails to resolve at score time. Keep it under the typed dir.
+ *
+ * Public surface is intentionally narrow — `Audit`, `auditDir`, `renderMarkdown` — so that
+ * `deno doc --lint` passes: `auditRecords`/`loadRecords` are kept private here (they leak the
+ * internal `EventRecord` type, which `deno doc --lint` forbids in a public signature), unlike
+ * the upstream module which exports them for standalone CLI use.
+ *
+ * Re-sync: copy the body of these declarations from swamp-logger's `audit.ts`, update the
+ * pinned commit above, and re-apply the visibility/JSDoc shaping noted here. The only contract
+ * shared across the boundary is the on-disk event schema (swamp-logger's PROTOCOL.md).
+ *
+ * @module
+ */
+
+/** One persisted record, as written by swamp_logger.ts. See PROTOCOL.md "On-disk layout". */
+interface EventRecord {
+  receivedAt?: string;
+  endpointPath?: string;
+  userAgent?: string;
+  event?: {
+    event?: string;
+    distinct_id?: string;
+    properties?: {
+      id?: string;
+      invocation?: {
+        command?: string;
+        args?: unknown[];
+        optionKeys?: string[];
+      };
+      result?: { status?: string; exitCode?: number };
+      startedAt?: string;
+      completedAt?: string;
+      durationMs?: number;
+      swampVersion?: string;
+      denoVersion?: string;
+      platform?: string;
+      invocationContext?: {
+        agentSessionDetected?: boolean;
+        isInteractive?: boolean;
+        externalDatastoreConfigured?: boolean;
+        configuredAiTools?: string[];
+        detectedAiTool?: string | null;
+      };
+      [k: string]: unknown;
+    };
+  };
+  /** Present instead of `event` for payloads swamp-logger could not parse (events/raw/). */
+  raw?: string;
+}
+
+/** Structured audit result — the machine-readable half (also the report JSON). */
+export interface Audit {
+  /** Number of parsed telemetry events. */
+  eventCount: number;
+  /** Number of unparsed payloads captured under events/raw/. */
+  rawCount: number;
+  /** Earliest and latest event timestamps seen (null when empty). */
+  timeRange: { first: string | null; last: string | null };
+  /** Count of invocations per command name. */
+  commands: Record<string, number>;
+  /** Count of invocations per result status. */
+  results: Record<string, number>;
+  /** Distinct option keys observed across all invocations. */
+  optionKeys: string[];
+  /** Stable identifiers that fingerprint the user and their repositories. */
+  fingerprint: { distinctIds: string[]; repoIds: string[] };
+  /** Distinct swamp/deno versions and platforms reported. */
+  environment: {
+    swampVersions: string[];
+    denoVersions: string[];
+    platforms: string[];
+  };
+  /** Session-context signals: agent driving, interactivity, configured AI tools, datastore. */
+  context: {
+    agentSessionDetected: Record<string, number>;
+    isInteractive: Record<string, number>;
+    detectedAiTools: string[];
+    configuredAiTools: string[];
+    externalDatastoreConfigured: Record<string, number>;
+  };
+  /** Invocations whose result status was not "success". */
+  failures: Array<
+    { command: string; status: string; exitCode: number; at: string | null }
+  >;
+  /** Human-readable privacy findings derived from the aggregate. */
+  findings: string[];
+}
+
+const uniq = <T>(xs: T[]): T[] => [...new Set(xs)].sort();
+const tally = (xs: string[]): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const x of xs) out[x] = (out[x] ?? 0) + 1;
+  return out;
+};
+const when = (r: EventRecord): string | null =>
+  r.event?.properties?.completedAt ?? r.event?.properties?.startedAt ??
+    r.receivedAt ?? null;
+
+/** Aggregate already-loaded records into an audit. Pure — no I/O. Internal to `auditDir`. */
+function auditRecords(records: EventRecord[]): Audit {
+  const events = records.filter((r) => r.event?.properties);
+  const props = events.map((r) => r.event!.properties!);
+  const ctx = props.map((p) => p.invocationContext).filter((
+    c,
+  ): c is NonNullable<typeof c> => !!c);
+
+  const stamps = events.map(when).filter((s): s is string => !!s).sort();
+  const distinctIds = uniq(
+    events.map((r) => r.event!.distinct_id).filter((x): x is string => !!x),
+  );
+  const repoIds = uniq(
+    props.map((p) => p["$repo_id"] as string).filter((x) => !!x),
+  );
+  const aiTools = uniq(ctx.flatMap((c) => c.configuredAiTools ?? []));
+  const agentRuns = ctx.filter((c) => c.agentSessionDetected === true).length;
+
+  const findings: string[] = [];
+  if (distinctIds.length) {
+    findings.push(
+      `Stable user identifier present: ${distinctIds.length} distinct \`distinct_id\` across ` +
+        `${events.length} event(s) — links every captured command back to you.`,
+    );
+  }
+  if (repoIds.length) {
+    findings.push(
+      `${repoIds.length} repository fingerprinted via \`$repo_id\`.`,
+    );
+  }
+  findings.push(
+    `Every command name is recorded: ${
+      Object.keys(tally(props.map((p) => p.invocation?.command ?? "?"))).length
+    } ` +
+      `distinct command(s) over ${events.length} invocation(s).`,
+  );
+  if (ctx.length) {
+    findings.push(
+      `AI-agent driving detected in ${agentRuns}/${ctx.length} invocation(s)` +
+        (aiTools.length ? ` (configured tools: ${aiTools.join(", ")}).` : "."),
+    );
+  }
+  const rawCount = records.filter((r) => r.raw !== undefined).length;
+  if (rawCount) {
+    findings.push(
+      `${rawCount} unparsed payload(s) captured under events/raw/.`,
+    );
+  }
+
+  return {
+    eventCount: events.length,
+    rawCount,
+    timeRange: {
+      first: stamps[0] ?? null,
+      last: stamps[stamps.length - 1] ?? null,
+    },
+    commands: tally(props.map((p) => p.invocation?.command ?? "?")),
+    results: tally(props.map((p) => p.result?.status ?? "?")),
+    optionKeys: uniq(props.flatMap((p) => p.invocation?.optionKeys ?? [])),
+    fingerprint: { distinctIds, repoIds },
+    environment: {
+      swampVersions: uniq(
+        props.map((p) => p.swampVersion).filter((x): x is string => !!x),
+      ),
+      denoVersions: uniq(
+        props.map((p) => p.denoVersion).filter((x): x is string => !!x),
+      ),
+      platforms: uniq(
+        props.map((p) => p.platform).filter((x): x is string => !!x),
+      ),
+    },
+    context: {
+      agentSessionDetected: tally(
+        ctx.map((c) => String(c.agentSessionDetected)),
+      ),
+      isInteractive: tally(ctx.map((c) => String(c.isInteractive))),
+      detectedAiTools: uniq(
+        ctx.map((c) => c.detectedAiTool ?? "").filter((x) => !!x),
+      ),
+      configuredAiTools: aiTools,
+      externalDatastoreConfigured: tally(
+        ctx.map((c) => String(c.externalDatastoreConfigured)),
+      ),
+    },
+    failures: props
+      .filter((p) => p.result && p.result.status !== "success")
+      .map((p) => ({
+        command: p.invocation?.command ?? "?",
+        status: p.result?.status ?? "?",
+        exitCode: p.result?.exitCode ?? -1,
+        at: p.completedAt ?? p.startedAt ?? null,
+      })),
+    findings,
+  };
+}
+
+/** Recursively load every `*.json` event record under `dir`. Internal to `auditDir`. */
+async function loadRecords(dir: string): Promise<EventRecord[]> {
+  const out: EventRecord[] = [];
+  const walk = async (d: string): Promise<void> => {
+    let entries: Deno.DirEntry[];
+    try {
+      entries = [...Deno.readDirSync(d)];
+    } catch {
+      return; // missing/inaccessible dir → no records
+    }
+    for (const e of entries) {
+      const p = `${d}/${e.name}`;
+      if (e.isDirectory) await walk(p);
+      else if (e.isFile && e.name.endsWith(".json")) {
+        try {
+          out.push(JSON.parse(await Deno.readTextFile(p)) as EventRecord);
+        } catch {
+          /* skip a corrupt/partial file rather than abort the whole audit */
+        }
+      }
+    }
+  };
+  await walk(dir);
+  return out;
+}
+
+const table = (
+  header: [string, string],
+  rows: [string, string | number][],
+): string =>
+  rows.length === 0 ? "_(none)_" : [
+    `| ${header[0]} | ${header[1]} |`,
+    `| --- | --- |`,
+    ...rows.map(([k, v]) => `| ${k} | ${v} |`),
+  ].join("\n");
+
+/** Render an audit as human-readable markdown (the report markdown half). */
+export function renderMarkdown(a: Audit): string {
+  const sortedCounts = (m: Record<string, number>): [string, number][] =>
+    Object.entries(m).sort((x, y) => y[1] - x[1]);
+  const range = a.timeRange.first
+    ? `${a.timeRange.first} → ${a.timeRange.last}`
+    : "—";
+  return [
+    `# swamp telemetry audit`,
+    ``,
+    `**${a.eventCount}** event(s) captured${
+      a.rawCount ? ` (+${a.rawCount} unparsed)` : ""
+    } · ` +
+    `window ${range}`,
+    ``,
+    `## What it phones home`,
+    ``,
+    a.findings.length
+      ? a.findings.map((f) => `- ${f}`).join("\n")
+      : "_(nothing captured)_",
+    ``,
+    `## Commands run`,
+    ``,
+    table(["command", "count"], sortedCounts(a.commands)),
+    ``,
+    `## Results`,
+    ``,
+    table(["status", "count"], sortedCounts(a.results)),
+    ``,
+    `## Fingerprint (stable identifiers)`,
+    ``,
+    table(["identifier", "distinct values"], [
+      ["distinct_id (user)", a.fingerprint.distinctIds.length],
+      ["$repo_id (repository)", a.fingerprint.repoIds.length],
+    ]),
+    ``,
+    `## Environment`,
+    ``,
+    table(["field", "values"], [
+      ["swampVersion", a.environment.swampVersions.join(", ") || "—"],
+      ["denoVersion", a.environment.denoVersions.join(", ") || "—"],
+      ["platform", a.environment.platforms.join(", ") || "—"],
+    ]),
+    ``,
+    `## Session context`,
+    ``,
+    table(["signal", "values"], [
+      ["agentSessionDetected", JSON.stringify(a.context.agentSessionDetected)],
+      ["isInteractive", JSON.stringify(a.context.isInteractive)],
+      ["configuredAiTools", a.context.configuredAiTools.join(", ") || "—"],
+      ["detectedAiTool", a.context.detectedAiTools.join(", ") || "—"],
+      [
+        "externalDatastoreConfigured",
+        JSON.stringify(a.context.externalDatastoreConfigured),
+      ],
+    ]),
+    ``,
+    `## Option keys seen`,
+    ``,
+    a.optionKeys.length
+      ? a.optionKeys.map((k) => `\`${k}\``).join(" · ")
+      : "_(none)_",
+    ``,
+    ...(a.failures.length
+      ? [
+        `## Failed invocations`,
+        ``,
+        table(
+          ["command", "status / exit"],
+          a.failures.map((f) => [
+            f.command,
+            `${f.status} (${f.exitCode})`,
+          ]),
+        ),
+        ``,
+      ]
+      : []),
+  ].join("\n");
+}
+
+/** Load + audit a directory, returning both report halves. */
+export async function auditDir(
+  dir: string,
+): Promise<{ markdown: string; json: Audit }> {
+  const json = auditRecords(await loadRecords(dir));
+  return { markdown: renderMarkdown(json), json };
+}

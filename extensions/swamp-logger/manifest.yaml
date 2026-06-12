@@ -1,0 +1,17 @@
+manifestVersion: 1
+name: "@henryrennerv/swamp-logger"
+# Version is finalized at publish time — `swamp extension push` computes the next CalVer.
+version: "2026.06.10.1"
+description: >
+  Capture, log, and audit the telemetry the swamp CLI emits, using the standalone
+  swamp-logger tool. Skills-only — points swamp's .swamp.yaml telemetryEndpoint at a local
+  swamp-logger process that records one file per event and/or POSTs each event to a sink.
+license: MIT
+paths:
+  base: manifest
+repository: "https://github.com/henry-renner-v/swamp-logger"
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+skills:
+  - swamp-logger
