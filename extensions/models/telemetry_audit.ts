@@ -79,7 +79,7 @@ interface ScanContext {
 /** Model definition: scan the swamp-logger event store into an auditable swamp resource. */
 export const model = {
   type: "@henryrennerv/swamp-telemetry-audit",
-  version: "2026.06.12.3",
+  version: "2026.06.12.4",
   reports: ["@henryrennerv/telemetry-audit"],
   globalArguments: GlobalArgsSchema,
   resources: {
