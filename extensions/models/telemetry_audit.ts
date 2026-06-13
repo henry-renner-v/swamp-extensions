@@ -57,6 +57,9 @@ const AuditSchema = z.object({
     exitCode: z.number(),
     at: z.string().nullable(),
   })),
+  // Optional with a default so audit resources written by an older version (pre-unknownFields)
+  // still validate after upgrade — see the matching `?.length` guard in renderMarkdown.
+  unknownFields: z.array(z.string()).default([]),
   findings: z.array(z.string()),
 });
 
@@ -79,7 +82,7 @@ interface ScanContext {
 /** Model definition: scan the swamp-logger event store into an auditable swamp resource. */
 export const model = {
   type: "@henryrennerv/swamp-telemetry-audit",
-  version: "2026.06.12.5",
+  version: "2026.06.12.6",
   reports: ["@henryrennerv/telemetry-audit"],
   globalArguments: GlobalArgsSchema,
   resources: {
