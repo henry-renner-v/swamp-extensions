@@ -83,6 +83,56 @@ Deno.test("report renders the audit resource as markdown + JSON", async () => {
   assertEquals((result.json as { eventCount: number }).eventCount, 1);
 });
 
+Deno.test("report self-bootstraps when the event store is empty", async () => {
+  const empty = { ...audit, eventCount: 0, rawCount: 0, commands: {} };
+  const content = new TextEncoder().encode(JSON.stringify(empty));
+  const { context } = createReportTestContext({
+    scope: "method",
+    modelType: MODEL_TYPE,
+    modelId: MODEL_ID,
+    methodName: "scan",
+    executionStatus: "succeeded",
+    dataHandles: [{
+      name: "current",
+      specName: "audit",
+      kind: "resource",
+      dataId: "d1",
+      version: 1,
+      size: content.length,
+      tags: { type: "resource", specName: "audit" },
+      metadata: {
+        contentType: "application/json",
+        lifetime: "infinite",
+        garbageCollection: 10,
+        streaming: false,
+        tags: { type: "resource", specName: "audit" },
+        ownerDefinition: { ownerType: "model-method", ownerRef: "scan" },
+      },
+    }],
+    dataArtifacts: [{
+      modelType: MODEL_TYPE,
+      modelId: MODEL_ID,
+      data: {
+        name: "current",
+        kind: "resource",
+        dataId: "d1",
+        version: 1,
+        size: content.length,
+        contentType: "application/json",
+      },
+      content,
+    }],
+  });
+
+  const result = await report.execute(
+    context as unknown as Parameters<typeof report.execute>[0],
+  );
+
+  assertStringIncludes(result.markdown, "No telemetry captured yet");
+  assertStringIncludes(result.markdown, "@henryrennerv/swamp-logger");
+  assertEquals((result.json as { eventCount: number }).eventCount, 0);
+});
+
 Deno.test("report returns a graceful message when no audit data is present", async () => {
   const { context } = createReportTestContext({
     scope: "method",

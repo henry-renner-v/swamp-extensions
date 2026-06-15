@@ -1,0 +1,14 @@
+{
+  // Swamp bundles extensions from inline `npm:`/`jsr:` specifiers — the documented
+  // "Inline imports (no deno.json required)" style — and the registry scorer stages only
+  // the typed dir, so a bare-specifier import map is deliberately avoided (the map would
+  // not be staged and bare imports would fail to resolve at score time). The two rules
+  // below are JSR-*package* publishing rules that flag exactly that supported style, so
+  // they are excluded here. Note: no "imports" map on purpose — this only tunes the linter,
+  // it does not change module resolution or the published bundle.
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix", "no-unversioned-import"]
+    }
+  }
+}

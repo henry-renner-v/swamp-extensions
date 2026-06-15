@@ -10,6 +10,12 @@ description: >
   consumes the event store swamp-logger generates; it produces nothing on its own.
 license: MIT
 repository: "https://github.com/henry-renner-v/swamp-extensions"
+# Declares the capture half this audit consumes. swamp accepts the field as metadata but does
+# not yet resolve it at `extension pull` (no transitive install) — so the report also self-
+# bootstraps with setup steps when the event store is empty. Once swamp ships dependency
+# resolution, pulling this extension would pull swamp-logger automatically.
+dependencies:
+  - "@henryrennerv/swamp-logger"
 additionalFiles:
   - README.md
   - LICENSE.txt
