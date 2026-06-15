@@ -1,22 +1,22 @@
 # @henryrennerv/swamp-logger
 
-A skills-only swamp extension that teaches an agent (or a human) how to **capture, log, and
-audit the telemetry the `swamp` CLI emits**, using the standalone
-[swamp-logger](https://github.com/henry-renner-v/swamp-logger) tool.
+A skills-only swamp extension that teaches an agent (or a human) how to
+**capture, log, and audit the telemetry the `swamp` CLI emits**, using the
+standalone [swamp-logger](https://github.com/henry-renner-v/swamp-logger) tool.
 
-> **Tool source:** the capture binary is the independent, zero-dependency Deno tool at
-> **<https://github.com/henry-renner-v/swamp-logger>**. This skill is only the *wiring* that points
-> swamp at it — it contains no capture logic.
+> **Tool source:** the capture binary is the independent, zero-dependency Deno
+> tool at **<https://github.com/henry-renner-v/swamp-logger>**. This skill is
+> only the _wiring_ that points swamp at it — it contains no capture logic.
 >
 > **Companion — audit what you capture:** the
 > [`@henryrennerv/swamp-telemetry-audit`](https://swamp-club.com/extensions/@henryrennerv/swamp-telemetry-audit)
 > model+report turns the captured event store into a repeatable audit
 > (`swamp extension pull @henryrennerv/swamp-telemetry-audit`).
 
-The capture deliberately runs **outside** swamp: a swamp extension executes *inside* the CLI
-and cannot intercept the CLI's own outbound telemetry. This extension therefore ships
-*guidance*, not capture logic — it points swamp's official per-repo `telemetryEndpoint` override
-at a local swamp-logger process.
+The capture deliberately runs **outside** swamp: a swamp extension executes
+_inside_ the CLI and cannot intercept the CLI's own outbound telemetry. This
+extension therefore ships _guidance_, not capture logic — it points swamp's
+official per-repo `telemetryEndpoint` override at a local swamp-logger process.
 
 ## Install
 
@@ -41,12 +41,13 @@ deno run --allow-net --allow-read --allow-write --allow-env \
   https://raw.githubusercontent.com/henry-renner-v/swamp-logger/main/swamp_logger.ts
 ```
 
-Every `swamp` invocation's telemetry is then written one-file-per-event locally, optionally
-POSTed to a `--sink` receiver of your choosing, and forwarded upstream unchanged. To stop
-telemetry entirely instead of logging it, use swamp's own switch (`--no-telemetry` /
-`SWAMP_NO_TELEMETRY=1`).
+Every `swamp` invocation's telemetry is then written one-file-per-event locally,
+optionally POSTed to a `--sink` receiver of your choosing, and forwarded
+upstream unchanged. To stop telemetry entirely instead of logging it, use
+swamp's own switch (`--no-telemetry` / `SWAMP_NO_TELEMETRY=1`).
 
-See the skill (`SKILL.md`) for the full setup, options, and the captured event schema.
+See the skill (`SKILL.md`) for the full setup, options, and the captured event
+schema.
 
 ## License
 
