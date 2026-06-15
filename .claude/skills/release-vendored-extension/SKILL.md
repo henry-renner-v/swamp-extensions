@@ -97,8 +97,12 @@ Sequence:
 3. Run unit tests for the model + report.
 4. `swamp extension push <manifest> --dry-run --json` — this prints the
    **content-hash-bound** adversarial-review path and a fill-in skeleton.
-5. **Adversarial review — delegate to an independent no-context subagent.** The
-   author reviewing their own diff is a rubber-stamp; spawn a fresh subagent
+5. **Adversarial review — delegate to an independent no-context subagent.**
+   *Exempt: docs/comment/version-only changes* (no logic/schema/behavior change)
+   — skip the review per the rubric's typo/comment-tweak carve-out and publish
+   with `--yes` (the push review-gate warning is non-blocking). For everything
+   else: the author reviewing their own diff is a rubber-stamp; spawn a fresh
+   subagent
    (`general-purpose`) that re-derives everything cold:
    - Give it ONLY the diff (`git diff origin/main..HEAD`), the changed files,
      the manifest, and the rubric path (`adversarial-review.md`). **Withhold
