@@ -1,0 +1,83 @@
+{
+  "extension": "@henryrennerv/swamp-telemetry-audit",
+  "version": "2026.06.14.1",
+  "reviewedAt": "2026-06-15T03:47:05Z",
+  "reviewer": "independent-subagent-no-context",
+  "dimensions": [
+    {
+      "id": "credentials-secrets",
+      "verdict": "pass",
+      "note": "No secrets; bootstrap uses loopback http://127.0.0.1:8099 (telemetry_audit.ts:58); distinct_id/$repo_id findings come from the user's own store."
+    },
+    {
+      "id": "logging-quality",
+      "verdict": "pass",
+      "note": "scan logs entry+completion with structured placeholders (telemetry_audit.ts:111,120); report has no logger by contract."
+    },
+    {
+      "id": "error-handling",
+      "verdict": "pass",
+      "note": "Report guards no-handle (:71) and no-content (:84) before decode; new empty branch throws nothing; JSON.parse failure correctly fails the report."
+    },
+    {
+      "id": "testing-completeness",
+      "verdict": "pass",
+      "note": "New empty-store bootstrap test asserts markdown markers + eventCount:0 in JSON (telemetry_audit_test.ts:86); success + no-data tests retained; 5 pass."
+    },
+    {
+      "id": "idempotency-resilience",
+      "verdict": "pass",
+      "note": "Missing dir and empty dir both resolve to eventCount=0,rawCount=0 via loadRecords try/catch (audit_core.ts:288) -> same bootstrap; scan overwrites 'current'."
+    },
+    {
+      "id": "api-contracts",
+      "verdict": "na",
+      "note": "No external HTTP calls; reads the local on-disk event store only."
+    },
+    {
+      "id": "resource-management",
+      "verdict": "pass",
+      "note": "readDirSync/readTextFile open no long-lived handles; no temp files or sockets introduced."
+    },
+    {
+      "id": "published-surface-hygiene",
+      "verdict": "pass",
+      "note": "Scanned extensions/ + README.md: no real IPs/hostnames/.local/.internal/homelab ids; only loopback, swamp-club.com, public github."
+    },
+    {
+      "id": "schema-strictness",
+      "verdict": "pass",
+      "note": "AuditSchema is plain z.object without .passthrough() (telemetry_audit.ts:28); unchanged."
+    },
+    {
+      "id": "lifetime-gc",
+      "verdict": "pass",
+      "note": "audit resource sets lifetime:infinite, garbageCollection:10 (telemetry_audit.ts:93-94); unchanged."
+    },
+    {
+      "id": "crud-completeness",
+      "verdict": "na",
+      "note": "Read-only analysis model (scan only); not a CRUD lifecycle model."
+    },
+    {
+      "id": "preflight-checks",
+      "verdict": "na",
+      "note": "scan is non-mutating (reads disk, writes a derived resource); no destructive op to gate."
+    },
+    {
+      "id": "instance-names",
+      "verdict": "pass",
+      "note": "Single instance 'current' for the sole spec (telemetry_audit.ts:116); unique within the method execution."
+    },
+    {
+      "id": "data-access",
+      "verdict": "pass",
+      "note": "Report reads via context.dataRepository.getContent using the dataHandles handle (telemetry_audit.ts:77) - report-context contract, not raw poking in a model method."
+    },
+    {
+      "id": "version-upgrades",
+      "verdict": "pass",
+      "note": "Bump 2026.06.12.6->2026.06.14.1 changes only a render-layer branch + manifest metadata; AuditSchema byte-identical, so no upgrades migration required."
+    }
+  ]
+}
