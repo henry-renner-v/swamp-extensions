@@ -1,7 +1,7 @@
 manifestVersion: 1
 name: "@henryrennerv/swamp-telemetry-audit"
 # Version is finalized at publish time — `swamp extension push` computes the next CalVer.
-version: "2026.06.12.6"
+version: "2026.06.14.1"
 description: >
   Audit the telemetry the swamp CLI phones home: a model + report that turn swamp-logger's
   captured event store into a repeatable swamp pipeline, surfacing commands run, the stable
