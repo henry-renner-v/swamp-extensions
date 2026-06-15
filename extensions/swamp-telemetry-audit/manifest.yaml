@@ -1,7 +1,7 @@
 manifestVersion: 1
 name: "@henryrennerv/swamp-telemetry-audit"
 # Version is finalized at publish time — `swamp extension push` computes the next CalVer.
-version: "2026.06.14.1"
+version: "2026.06.15.1"
 description: >
   Audit the telemetry the swamp CLI phones home: a model + report that turn swamp-logger's
   captured event store into a repeatable swamp pipeline, surfacing commands run, the stable
@@ -10,10 +10,10 @@ description: >
   consumes the event store swamp-logger generates; it produces nothing on its own.
 license: MIT
 repository: "https://github.com/henry-renner-v/swamp-extensions"
-# Declares the capture half this audit consumes. swamp accepts the field as metadata but does
-# not yet resolve it at `extension pull` (no transitive install) — so the report also self-
-# bootstraps with setup steps when the event store is empty. Once swamp ships dependency
-# resolution, pulling this extension would pull swamp-logger automatically.
+# Declares the capture half this audit consumes. swamp resolves this transitively: pulling this
+# extension auto-installs @henryrennerv/swamp-logger (its skill + files) as well. Installing the
+# skill is not the same as running the capture listener, so the report still self-bootstraps with
+# setup steps when the event store is empty.
 dependencies:
   - "@henryrennerv/swamp-logger"
 additionalFiles:
